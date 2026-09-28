@@ -6,7 +6,6 @@ from collections import defaultdict, deque
 import os
 from keep_alive import keep_alive
 
-# Discord API limitlerine takılmamak için Intents ayarları
 intents = discord.Intents.default()
 intents.message_content = True
 intents.guilds = True
@@ -38,7 +37,7 @@ async def remove_all_roles(member: discord.Member, reason: str):
 # --- BOT HAZIR ---
 @bot.event
 async def on_ready():
-    print(f'{bot.user} olarak başarıyla giriş yapıldı!')
+    print(f'{bot.user} olarak başarıyla ve hızlı modda giriş yapıldı!')
 
 # --- MESAJ ETKİNLİKLERİ (SA-AS, SPAM, AFK) ---
 @bot.event
@@ -209,45 +208,6 @@ async def spamkoruma(ctx, durum: str):
 async def afk(ctx, *, reason="Belirtilmedi"):
     afk_users[ctx.author.id] = reason
     await ctx.send(f'{ctx.author.mention}, artık AFK modundasın. Sebep: {reason}')
-
-# --- !SES (USERBOT TOKEN İLE SESE GİRME) ---
-@bot.command()
-async def ses(ctx):
-    await ctx.send(f"{ctx.author.mention}, sana DM üzerinden mesaj attım! Lütfen DM kutunu kontrol et.")
-    dm = await ctx.author.create_dm()
-    await dm.send("Lütfen sırasıyla **Hesap Tokeninizi** ve girmesini istediğiniz **Ses Kanal ID'sini** virgülle ayırarak yazın.\nÖrnek: `TOKEN_BURAYA,KANAL_ID_BURAYA`")
-
-    def check(m):
-        return m.author == ctx.author and isinstance(m.channel, discord.DMChannel)
-
-    try:
-        msg = await bot.wait_for('message', check=check, timeout=60.0)
-        parts = msg.content.split(',')
-        if len(parts) != 2:
-            await dm.send("Hatalı format! İşlem iptal edildi.")
-            return
-
-        user_token = parts[0].strip()
-        channel_id = int(parts[1].strip())
-
-        import discord as self_discord
-        from discord.ext import commands as self_commands
-
-        user_bot = self_commands.Bot(command_prefix="!", self_bot=True)
-
-        @user_bot.event
-        async def on_ready():
-            channel = user_bot.get_channel(channel_id)
-            if channel:
-                await channel.connect()
-                await dm.send(f"Başarıyla `{channel.name}` ses kanalına giriş yapıldı!")
-
-        asyncio.create_task(user_bot.start(user_token))
-
-    except asyncio.TimeoutError:
-        await dm.send("Süre doldu, lütfen komutu tekrar çalıştırın.")
-    except Exception as e:
-        await dm.send(f"Bir hata oluştu: {e}")
 
 # Web sunucusunu başlat
 keep_alive()
