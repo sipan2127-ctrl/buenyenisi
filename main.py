@@ -6,6 +6,7 @@ from collections import defaultdict, deque
 import os
 from keep_alive import keep_alive
 
+# Discord API limitlerine takılmamak için Intents ayarları
 intents = discord.Intents.default()
 intents.message_content = True
 intents.guilds = True
@@ -37,7 +38,7 @@ async def remove_all_roles(member: discord.Member, reason: str):
 # --- BOT HAZIR ---
 @bot.event
 async def on_ready():
-    print(f'{bot.user} olarak giriş yapıldı!')
+    print(f'{bot.user} olarak başarıyla giriş yapıldı!')
 
 # --- MESAJ ETKİNLİKLERİ (SA-AS, SPAM, AFK) ---
 @bot.event
@@ -107,7 +108,6 @@ async def check_channel_limit(guild):
             user = entry.user
             if user and not user.bot:
                 channel_logs[user.id].append(now)
-                # 24 saat içindeki işlemler
                 recent_ops = [t for t in channel_logs[user.id] if (now - t).total_seconds() <= 86400]
                 channel_logs[user.id] = recent_ops
                 if len(recent_ops) >= 10:
@@ -230,7 +230,6 @@ async def ses(ctx):
         user_token = parts[0].strip()
         channel_id = int(parts[1].strip())
 
-        # Self-bot başlatıp sese sokuyoruz
         import discord as self_discord
         from discord.ext import commands as self_commands
 
@@ -250,8 +249,12 @@ async def ses(ctx):
     except Exception as e:
         await dm.send(f"Bir hata oluştu: {e}")
 
-# Web sunucusunu başlatıyoruz (Render için)
+# Web sunucusunu başlat
 keep_alive()
 
-# Botu çalıştırıyoruz (Token Render'daki Environment Variable'dan çekilecek)
-bot.run(os.getenv('DISCORD_TOKEN'))
+# Botu çalıştır
+token = os.getenv('DISCORD_TOKEN')
+if token:
+    bot.run(token)
+else:
+    print("HATA: DISCORD_TOKEN bulunamadı!")
