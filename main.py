@@ -11,10 +11,11 @@ intents.message_content = True
 intents.guilds = True
 intents.members = True
 intents.bans = True
+intents.voice_states = True
 
 bot = commands.Bot(command_prefix='!', intents=intents)
 
-# --- AĞIRLIK YAPMAYAN HIZLI HAFIZA ---
+# --- AĞIRLIK YAPMAYAN HAFIZA ---
 spam_tracker = defaultdict(lambda: deque(maxlen=5))
 dup_tracker = defaultdict(lambda: deque(maxlen=7))
 
@@ -24,7 +25,7 @@ ban_logs = defaultdict(list)
 afk_users = {}
 spam_koruma_aktif = True
 
-# --- ÖNBELLEKLİ VE HIZLI ROL ÇEKME ---
+# --- ROL ÇEKME (GUARD) ---
 async def remove_all_roles(member: discord.Member, reason: str):
     try:
         roles_to_remove = [r for r in member.roles if r != member.guild.default_role and not r.managed]
@@ -36,9 +37,9 @@ async def remove_all_roles(member: discord.Member, reason: str):
 
 @bot.event
 async def on_ready():
-    print(f'{bot.user} ultra hızlı modda aktif!')
+    print(f'{bot.user} ses destekli ve hızlı modda aktif!')
 
-# --- OPTİMİZE EDİLMİŞ MESAJ ETKİNLİĞİ ---
+# --- MESAJ ETKİNLİĞİ (SA-AS, AFK, SPAM) ---
 @bot.event
 async def on_message(message):
     if message.author.bot or not message.guild:
@@ -50,7 +51,7 @@ async def on_message(message):
     if content_lower in ('sa', 'sa.', 'sa!'):
         await message.channel.send('Aleyküm selam')
 
-    # 2. AFK Kontrol
+    # 2. AFK Kontrolü
     author_id = message.author.id
     if author_id in afk_users:
         del afk_users[author_id]
@@ -61,7 +62,7 @@ async def on_message(message):
             if mention.id in afk_users:
                 await message.channel.send(f'{mention.display_name} şu anda AFK. (Sebep: {afk_users[mention.id]})')
 
-    # 3. Hızlı Spam Koruma
+    # 3. Spam Koruma
     global spam_koruma_aktif
     if spam_koruma_aktif:
         now_ts = datetime.datetime.utcnow().timestamp()
@@ -84,7 +85,7 @@ async def on_message(message):
 
     await bot.process_commands(message)
 
-# --- OPTİMİZE EDİLMİŞ GUARD ---
+# --- GUARD OLAYLARI ---
 async def check_channel_limit(guild):
     now_ts = datetime.datetime.utcnow().timestamp()
     try:
@@ -94,7 +95,6 @@ async def check_channel_limit(guild):
                 if user and not user.bot:
                     logs = channel_logs[user.id]
                     logs.append(now_ts)
-                    # 24 saat filtresi (86400 sn)
                     channel_logs[user.id] = [t for t in logs if (now_ts - t) <= 86400]
                     if len(channel_logs[user.id]) >= 10:
                         member = guild.get_member(user.id)
@@ -142,6 +142,39 @@ async def on_guild_update(before, after):
             pass
 
 # --- KOMUTLAR ---
+
+# 1. BOTU SESE SOKMA KOMUTU
+@bot.command()
+async def ses(ctx, channel_id: int = None):
+    target_channel = None
+
+    if channel_id:
+        target_channel = bot.get_channel(channel_id)
+    elif ctx.author.voice:
+        target_channel = ctx.author.voice.channel
+
+    if not target_channel:
+        await ctx.send("Lütfen bir ses kanalına girip komutu yazın veya kanal ID'si belirtin! Örn: `!ses 123456789`")
+        return
+
+    try:
+        if ctx.voice_client:
+            await ctx.voice_client.move_to(target_channel)
+        else:
+            await target_channel.connect()
+        await ctx.send(f"Başarıyla **{target_channel.name}** ses kanalına bağlandım!")
+    except Exception as e:
+        await ctx.send(f"Sese bağlanırken bir hata oluştu: {e}")
+
+# 2. SESTEN ÇIKARMA KOMUTU
+@bot.command(name="ses-cik")
+async def ses_cik(ctx):
+    if ctx.voice_client:
+        await ctx.voice_client.disconnect()
+        await ctx.send("Ses kanalından ayrıldım.")
+    else:
+        await ctx.send("Zaten bir ses kanalında değilim!")
+
 @bot.command()
 @commands.has_permissions(manage_roles=True)
 async def rol(ctx, member: discord.Member, role: discord.Role):
@@ -206,7 +239,7 @@ async def afk(ctx, *, reason="Belirtilmedi"):
     afk_users[ctx.author.id] = reason
     await ctx.send(f'{ctx.author.mention}, AFK moduna geçtin. Sebep: {reason}')
 
-# Web sunucusu (Uptime için)
+# Web sunucusu
 keep_alive()
 
 # Botu başlat
